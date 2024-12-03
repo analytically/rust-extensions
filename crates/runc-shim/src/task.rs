@@ -40,7 +40,8 @@ use containerd_shim::{
 };
 use log::{debug, info, warn};
 use oci_spec::runtime::LinuxResources;
-use tokio::sync::{mpsc::Sender, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use tokio::sync::mpsc::Sender;
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use super::container::{Container, ContainerFactory};
 type EventSender = Sender<(String, Box<dyn MessageDyn>)>;
@@ -95,28 +96,24 @@ where
 }
 
 impl<F, C> TaskService<F, C> {
-    pub async fn get_container(&self, id: &str) -> TtrpcResult<impl std::ops::DerefMut<Target = C> + '_> {
-        let containers = self.containers.write().await;
-        if !containers.contains_key(id) {
-            return Err(ttrpc::Error::RpcStatus(ttrpc::get_status(
-                ttrpc::Code::NOT_FOUND,
-                format!("can not find container by id {}", id),
-            )));
-        }
-        let guard = RwLockWriteGuard::map(containers, |m| m.get_mut(id).unwrap());
-        Ok(guard)
+    pub fn get_container(&self, id: &str) -> TtrpcResult<RwLockWriteGuard<'_, C>> {
+        let mut containers = self.containers.write().unwrap();
+        containers.get_mut(id).ok_or_else(|| {
+            ttrpc::Error::RpcStatus(ttrpc::get_status(
+                ttrpc::Code::NOT_FOUND, 
+                format!("can not find container by id {}", id)
+            ))
+        })
     }
 
-    pub async fn get_container_read(&self, id: &str) -> TtrpcResult<RwLockReadGuard<'_, C>> {
-        let containers = self.containers.read().await;
+    pub fn get_container_read(&self, id: &str) -> TtrpcResult<RwLockReadGuard<'_, C>> {
+        let containers = self.containers.read().unwrap();
         containers.get(id).ok_or_else(|| {
             ttrpc::Error::RpcStatus(ttrpc::get_status(
                 ttrpc::Code::NOT_FOUND,
                 format!("can not find container by id {}", id),
             ))
-        })?;
-        let container = RwLockReadGuard::map(containers, |m| m.get(id).unwrap());
-        Ok(container)
+        })
     }
 
     pub async fn send_event(&self, event: impl Event) {
