@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard}};
 
 use async_trait::async_trait;
 use containerd_shim::{
@@ -41,7 +41,6 @@ use containerd_shim::{
 use log::{debug, info, warn};
 use oci_spec::runtime::LinuxResources;
 use tokio::sync::mpsc::Sender;
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use super::container::{Container, ContainerFactory};
 type EventSender = Sender<(String, Box<dyn MessageDyn>)>;
