@@ -169,7 +169,7 @@ where
     C: Container + Sync + Send + 'static,
 {
     async fn state(&self, _ctx: &TtrpcContext, req: StateRequest) -> TtrpcResult<StateResponse> {
-        let container = self.get_container(req.id()).await?;
+        let container = self.get_container(req.id())?;
         let exec_id = req.exec_id().as_option();
         let resp = container.state(exec_id).await?;
         Ok(resp)
